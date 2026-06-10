@@ -1,5 +1,6 @@
 const express = require('express');
 const requestLogger = require('./middleware/requestLogger');
+const notificationRoutes = require('./routes/notificationRoutes');
 const logger = require('./utils/logger');
 
 const app = express();
@@ -14,9 +15,12 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.use('/api/v1/notifications', notificationRoutes);
+
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Route not found',
+    success: false,
+    message: 'Route not found',
     requestId: req.requestId
   });
 });
@@ -29,7 +33,8 @@ app.use((err, req, res, next) => {
   });
 
   res.status(500).json({
-    error: 'Internal server error',
+    success: false,
+    message: 'Internal server error',
     requestId: req.requestId
   });
 });

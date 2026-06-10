@@ -430,3 +430,199 @@ Production considerations:
 - The API uses JSON for all request and response bodies.
 - Timestamps use ISO 8601 format in UTC.
 - Pagination and filtering should be performed at the database query level for scalability.
+
+# Stage 2
+
+## Database Choice
+
+PostgreSQL is selected for the Campus Notification System.
+
+PostgreSQL is suitable because notifications are structured data with clear relationships between students and notifications. It supports strong consistency, foreign keys, indexing, pagination, filtering, and reliable transactions. These are useful for a production system where a notification should not point to a missing student and read status updates must be stored correctly.
+
+PostgreSQL is a better fit than MongoDB for this stage because the data model is relational and predictable. It is also easier to query notifications by `studentId`, `notificationType`, `isRead`, and `createdAt` using indexes. Compared with an in-memory store like Redis, PostgreSQL is better as the main database because notifications must be stored permanently. Redis can still be added later for caching unread counts or recent notifications.
+
+## Schema Design
+
+The design uses three tables:
+
+- `students`
+- `notifications`
+- `notification_read_status`
+
+The `notification_read_status` table is useful because it keeps notification content separate from per-student delivery and read tracking. This supports both direct notifications for one student and future shared notifications sent to many students.
+
+### Students
+
+Stores basic student records.
+
+| Column | Data Type | Key | Description |
+| --- | --- | --- | --- |
+| `id` | `UUID` | Primary key | Unique student ID |
+| `name` | `VARCHAR(100)` |  | Student name |
+| `email` | `VARCHAR(150)` | Unique | Student email |
+| `department` | `VARCHAR(100)` |  | Student department |
+| `created_at` | `TIMESTAMPTZ` |  | Student record creation time |
+
+### Notifications
+
+Stores notification content.
+
+| Column | Data Type | Key | Description |
+| --- | --- | --- | --- |
+| `id` | `UUID` | Primary key | Unique notification ID |
+| `notification_type` | `VARCHAR(30)` |  | Type such as `Placement`, `Event`, or `Result` |
+| `title` | `VARCHAR(150)` |  | Short notification title |
+| `message` | `TEXT` |  | Full notification message |
+| `created_by` | `VARCHAR(100)` |  | Admin or system service that created the notification |
+| `created_at` | `TIMESTAMPTZ` |  | Notification creation time |
+
+### NotificationReadStatus
+
+Tracks delivery and read state for each student.
+
+| Column | Data Type | Key | Description |
+| --- | --- | --- | --- |
+| `id` | `UUID` | Primary key | Unique tracking record ID |
+| `notification_id` | `UUID` | Foreign key | References `notifications(id)` |
+| `student_id` | `UUID` | Foreign key | References `students(id)` |
+| `is_read` | `BOOLEAN` |  | Whether the student has read the notification |
+| `read_at` | `TIMESTAMPTZ` |  | Time when the student read the notification |
+| `delivered_at` | `TIMESTAMPTZ` |  | Time when the notification was assigned to the student |
+
+## Relationships
+
+- One student can have many notification read status records.
+- One notification can be delivered to many students.
+- `notification_read_status` connects students and notifications.
+- The combination of `student_id` and `notification_id` should be unique so the same notification is not delivered twice to the same student.
+
+This design supports the Stage 1 API response by joining `students`, `notifications`, and `notification_read_status`. The API can return `studentId`, `type`, `title`, `message`, `isRead`, `createdAt`, and `readAt`.
+
+## SQL Schema
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE students (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  department VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  notification_type VARCHAR(30) NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  message TEXT NOT NULL,
+  created_by VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT notifications_type_check
+    CHECK (notification_type IN ('Placement', 'Event', 'Result'))
+);
+
+CREATE TABLE notification_read_status (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  notification_id UUID NOT NULL,
+  student_id UUID NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT fk_notification_read_status_notification
+    FOREIGN KEY (notification_id)
+    REFERENCES notifications(id)
+    ON DELETE CASCADE,
+
+  CONSTRAINT fk_notification_read_status_student
+    FOREIGN KEY (student_id)
+    REFERENCES students(id)
+    ON DELETE CASCADE,
+
+  CONSTRAINT unique_student_notification
+    UNIQUE (student_id, notification_id)
+);
+```
+
+## Indexing Strategy
+
+Indexes should match the main API access patterns.
+
+```sql
+CREATE INDEX idx_notification_read_status_student_id
+ON notification_read_status (student_id);
+
+CREATE INDEX idx_notification_read_status_student_read
+ON notification_read_status (student_id, is_read);
+
+CREATE INDEX idx_notifications_type
+ON notifications (notification_type);
+
+CREATE INDEX idx_notifications_created_at
+ON notifications (created_at DESC);
+
+CREATE INDEX idx_notification_list_lookup
+ON notification_read_status (student_id, is_read, delivered_at DESC);
+```
+
+Why these indexes are useful:
+
+- `student_id` helps fetch notifications for one student quickly.
+- `(student_id, is_read)` helps filter unread notifications.
+- `notification_type` helps filter placement, event, or result notifications.
+- `created_at DESC` helps return newest notifications first.
+- `(student_id, is_read, delivered_at DESC)` supports the common list page query with unread filtering and pagination.
+
+For filtering by notification type and unread status together, the API would join `notification_read_status` with `notifications` and use indexes from both tables.
+
+## Scaling Discussion
+
+### Large Number of Students
+
+The `students` table uses a UUID primary key, so student records can be created without depending on sequential IDs from a single server. The notification tracking table stores one row per student per delivered notification, which keeps each student's read state separate and easy to query.
+
+For very large campuses or multiple institutions, the system can later add an `institution_id` column and include it in indexes.
+
+### Large Number of Notifications
+
+Notifications can grow quickly because one announcement may be delivered to thousands of students. Keeping notification content in `notifications` and student-specific status in `notification_read_status` avoids duplicating the full message for every student.
+
+Old notifications can be archived after a fixed retention period, such as 6 or 12 months. This keeps the active tables smaller and improves query performance.
+
+### Fast Notification Retrieval
+
+The main API query is expected to fetch notifications for one student, sorted newest first. The index on `(student_id, is_read, delivered_at DESC)` helps this query stay fast.
+
+Pagination should use `page` and `limit` for the Stage 1 API. For larger datasets, cursor-based pagination using `delivered_at` and `id` would be more efficient because it avoids slow high-offset queries.
+
+### Possible Scaling Problems
+
+- A notification sent to every student can create many rows in `notification_read_status`.
+- Offset pagination can become slow for students with a very large notification history.
+- Counting total notifications on every request can become expensive.
+- Real-time SSE connections can put pressure on the backend if many students stay connected at once.
+- Indexes improve reads but add extra work during large insert operations.
+
+### Improvements For Future Growth
+
+- Use background jobs to create delivery tracking records for bulk notifications.
+- Add table partitioning on `notification_read_status` by month or by institution when data becomes large.
+- Use read replicas for heavy notification list traffic.
+- Cache unread notification counts in Redis.
+- Cache the first page of recent notifications for active students.
+- Move older notifications to archive tables.
+- Use cursor-based pagination for better performance at scale.
+- Add monitoring for slow queries, database connections, and SSE connection counts.
+
+## Assumptions
+
+- PostgreSQL is the main persistent database.
+- Redis is optional and used only for caching or counters, not as the source of truth.
+- Each notification belongs to one of three types: `Placement`, `Event`, or `Result`.
+- Students can only read their own notifications.
+- Admin users or system services create notifications.
+- The API returns camelCase fields, while the database uses snake_case columns.
+- Notification deletion can be handled by deleting the tracking row for a student or by soft delete in a future version.
+- Timestamps are stored in UTC using `TIMESTAMPTZ`.
+- The first implementation can use page-based pagination, with cursor pagination added later if needed.
