@@ -1,0 +1,32 @@
+[
+  {
+    "id": "notif_101",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Update",
+    "message": "You have been shortlisted for the next interview round.",
+    "isRead": false,
+    "createdAt": "2026-06-10T10:30:00.000Z",
+    "readAt": null
+  },
+  {
+    "id": "notif_102",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Campus Event Reminder",
+    "message": "The technical workshop starts today at 3 PM in Seminar Hall 2.",
+    "isRead": false,
+    "createdAt": "2026-06-10T11:00:00.000Z",
+    "readAt": null
+  },
+  {
+    "id": "notif_103",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Published",
+    "message": "Your semester result has been published.",
+    "isRead": true,
+    "createdAt": "2026-06-10T12:00:00.000Z",
+    "readAt": "2026-06-10T12:30:00.000Z"
+  }
+]
