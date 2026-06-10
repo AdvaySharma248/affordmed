@@ -12,12 +12,15 @@ function PaginationControls({ page, totalPages, totalItems, onPageChange }) {
         justifyContent: 'space-between',
         alignItems: 'center',
         mt: 3,
+        pt: 2,
+        borderTop: '1px solid',
+        borderColor: 'grey.100',
         flexWrap: 'wrap',
-        gap: 1,
+        gap: 2,
       }}
     >
-      <Typography variant="body2" color="text.secondary">
-        Page {page} of {totalPages} — {totalItems} total
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+        Showing {totalItems > 0 ? (page - 1) * 10 + 1 : 0} - {Math.min(page * 10, totalItems)} of {totalItems} total
       </Typography>
 
       <Pagination
@@ -27,6 +30,12 @@ function PaginationControls({ page, totalPages, totalItems, onPageChange }) {
         color="primary"
         shape="rounded"
         size="small"
+        sx={{
+          '& .MuiPaginationItem-root': {
+            fontWeight: 600,
+            borderRadius: 2,
+          },
+        }}
       />
     </Box>
   );

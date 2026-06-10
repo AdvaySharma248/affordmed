@@ -8,17 +8,22 @@ function requestLogger(req, res, next) {
   req.requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
 
+  logger.info('HTTP request received', {
+    requestId,
+    method: req.method,
+    url: req.originalUrl,
+  });
+
   res.on('finish', () => {
     const finishedAt = process.hrtime.bigint();
     const responseTimeMs = Number(finishedAt - startedAt) / 1_000_000;
 
     logger.info('HTTP request completed', {
       requestId,
-      timestamp: new Date().toISOString(),
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
-      responseTime: `${responseTimeMs.toFixed(2)}ms`
+      responseTime: `${responseTimeMs.toFixed(2)}ms`,
     });
   });
 

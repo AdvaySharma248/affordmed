@@ -1,109 +1,101 @@
-import { useState, useEffect, useCallback } from 'react';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
+import { useState } from 'react';
 import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
 import Header from './components/Header';
 import FilterBar from './components/FilterBar';
 import TopNotifications from './components/TopNotifications';
 import NotificationList from './components/NotificationList';
 import PaginationControls from './components/PaginationControls';
-import { fetchNotifications, fetchAllNotifications } from './services/notificationApi';
-import { getTopPriorityNotifications } from './utils/priorityHelper';
-import logger from './utils/logger';
-
-const PER_PAGE = 5;
+import { useNotifications } from './hooks/useNotifications';
 
 function App() {
-  const [notifications, setNotifications] = useState([]);
-  const [pagination, setPagination] = useState({});
-  const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState('All');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    error,
+    filter,
+    handleFilterChange,
+    loading,
+    notifications,
+    page,
+    pagination,
+    setPage,
+    topError,
+    topLoading,
+    topNotifications,
+  } = useNotifications();
 
-  const [topNotifications, setTopNotifications] = useState([]);
-  const [topLoading, setTopLoading] = useState(true);
-  const [topError, setTopError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [readFilter, setReadFilter] = useState('all');
 
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const type = filter === 'All' ? undefined : filter;
-      const result = await fetchNotifications({ page, limit: PER_PAGE, type });
-      setNotifications(result.data);
-      setPagination(result.pagination);
-    } catch (err) {
-      logger.error('Failed to load notifications', { message: err.message });
-      setError(err.message || 'Something went wrong. Try again.');
-      setNotifications([]);
-      setPagination({});
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filter]);
-
-  const loadTopNotifications = useCallback(async () => {
-    setTopLoading(true);
-    setTopError(null);
-    try {
-      const all = await fetchAllNotifications();
-      setTopNotifications(getTopPriorityNotifications(all, 10));
-    } catch (err) {
-      logger.error('Failed to load top notifications', { message: err.message });
-      setTopError(err.message || 'Could not load priority notifications.');
-      setTopNotifications([]);
-    } finally {
-      setTopLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadNotifications();
-  }, [loadNotifications]);
-
-  useEffect(() => {
-    loadTopNotifications();
-  }, [loadTopNotifications]);
-
-  function handleFilterChange(val) {
-    setFilter(val);
+  const handleCategoryChange = (val) => {
+    handleFilterChange(val);
+    setSearchQuery('');
     setPage(1);
-  }
+  };
+
+  const filteredNotifications = notifications.filter((n) => {
+    const msg = (n.message || n.Message || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = msg.includes(query);
+
+    const isReadVal = n.isRead ?? false;
+    if (readFilter === 'unread') {
+      return matchesSearch && !isReadVal;
+    } else if (readFilter === 'read') {
+      return matchesSearch && isReadVal;
+    }
+    return matchesSearch;
+  });
 
   return (
-    <Box sx={{ bgcolor: '#fafafa', minHeight: '100vh' }}>
-      <Header />
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: { xs: 2, sm: 4 } }}>
+      <Container maxWidth="md" disableGutters sx={{ px: { xs: 1, sm: 2 } }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            borderRadius: 2,
+            overflow: 'hidden',
+            borderColor: 'grey.200',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            bgcolor: 'white',
+          }}
+        >
+          <Header
+            totalItems={pagination.totalItems || notifications.length}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
 
-      <Container maxWidth="md" sx={{ py: 3 }}>
-        <FilterBar activeFilter={filter} onFilterChange={handleFilterChange} />
+          <FilterBar
+            activeCategory={filter}
+            onCategoryChange={handleCategoryChange}
+            readFilter={readFilter}
+            onReadFilterChange={setReadFilter}
+          />
 
-        <TopNotifications
-          notifications={topNotifications}
-          loading={topLoading}
-          error={topError}
-        />
-
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-            All Notifications{filter !== 'All' ? ` — ${filter}` : ''}
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
+          <TopNotifications
+            notifications={topNotifications}
+            loading={topLoading}
+            error={topError}
+          />
 
           <NotificationList
-            notifications={notifications}
+            notifications={filteredNotifications}
             loading={loading}
             error={error}
           />
 
-          <PaginationControls
-            page={page}
-            totalPages={pagination.totalPages || 1}
-            totalItems={pagination.totalItems || 0}
-            onPageChange={setPage}
-          />
-        </Box>
+          <Box sx={{ p: 2, bgcolor: 'grey.50' }}>
+            <PaginationControls
+              page={page}
+              totalPages={pagination.totalPages || 1}
+              totalItems={pagination.totalItems || 0}
+              onPageChange={setPage}
+            />
+          </Box>
+        </Paper>
       </Container>
     </Box>
   );

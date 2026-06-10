@@ -1,5 +1,405 @@
 [
   {
+    "id": "15e0030d-03c4-42ee-bdbb-8d2fc3d604d7",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "project-review",
+    "isRead": false,
+    "createdAt": "2026-06-09T21:51:33.000Z",
+    "readAt": null
+  },
+  {
+    "id": "f4d0c4c3-d313-49d9-a74a-af4b972ca641",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "project-review",
+    "isRead": false,
+    "createdAt": "2026-06-10T01:21:17.000Z",
+    "readAt": null
+  },
+  {
+    "id": "91152a2b-d99d-4b3c-8dfa-9274fc62f28e",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "external",
+    "isRead": false,
+    "createdAt": "2026-06-09T10:21:01.000Z",
+    "readAt": null
+  },
+  {
+    "id": "d912dd6a-48c2-4801-a097-a96dd5b379c5",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "external",
+    "isRead": false,
+    "createdAt": "2026-06-09T14:50:45.000Z",
+    "readAt": null
+  },
+  {
+    "id": "f7f5d240-e013-4a83-9ffd-d23f78a5f35c",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Marriott International Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T17:50:29.000Z",
+    "readAt": null
+  },
+  {
+    "id": "aeee8b64-9c91-401a-ba08-52ec793bd404",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "project-review",
+    "isRead": false,
+    "createdAt": "2026-06-09T23:20:13.000Z",
+    "readAt": null
+  },
+  {
+    "id": "61143514-868c-45c9-a734-79f97c0fa72a",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Marriott International Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-10T01:19:57.000Z",
+    "readAt": null
+  },
+  {
+    "id": "b5d7a315-1c5e-4436-99c9-de8236c3e7c3",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Berkshire Hathaway Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T07:49:41.000Z",
+    "readAt": null
+  },
+  {
+    "id": "3a7a82fe-10f6-499e-9c27-9ed4484d6f1c",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "induction",
+    "isRead": false,
+    "createdAt": "2026-06-10T06:49:25.000Z",
+    "readAt": null
+  },
+  {
+    "id": "538c53c6-9bb9-43e1-ac06-592a8b0c1605",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "tech-fest",
+    "isRead": false,
+    "createdAt": "2026-06-09T14:19:09.000Z",
+    "readAt": null
+  },
+  {
+    "id": "65a23e50-d095-444e-90bf-44f08c143442",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "end-sem",
+    "isRead": false,
+    "createdAt": "2026-06-09T22:18:53.000Z",
+    "readAt": null
+  },
+  {
+    "id": "f92d36ff-db22-46f3-a661-9d223427b9d0",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "induction",
+    "isRead": false,
+    "createdAt": "2026-06-09T23:18:37.000Z",
+    "readAt": null
+  },
+  {
+    "id": "8caa5720-ece1-45e5-9163-d199c4d6b159",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "project-review",
+    "isRead": false,
+    "createdAt": "2026-06-09T08:48:21.000Z",
+    "readAt": null
+  },
+  {
+    "id": "e56d2ea5-3551-4aab-8af1-9b72ed46393c",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Berkshire Hathaway Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T14:18:05.000Z",
+    "readAt": null
+  },
+  {
+    "id": "49aa2ef9-886f-4d1d-9a6b-025f23f87565",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "internal",
+    "isRead": false,
+    "createdAt": "2026-06-10T03:17:49.000Z",
+    "readAt": null
+  },
+  {
+    "id": "970a8e05-ef97-4dc2-9fce-e47569cea6e2",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Booking Holdings Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T21:47:33.000Z",
+    "readAt": null
+  },
+  {
+    "id": "caca67a1-b856-4a03-be62-4449a4393f8d",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Marriott International Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-10T04:47:17.000Z",
+    "readAt": null
+  },
+  {
+    "id": "62ca098a-16ca-4f81-a09f-fb0fc863f4f6",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "tech-fest",
+    "isRead": false,
+    "createdAt": "2026-06-09T12:47:01.000Z",
+    "readAt": null
+  },
+  {
+    "id": "9e95b618-570e-499d-8a66-799e94e3343a",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "farewell",
+    "isRead": false,
+    "createdAt": "2026-06-09T09:46:45.000Z",
+    "readAt": null
+  },
+  {
+    "id": "cc33a7d3-35cb-4471-b797-0e78167800e6",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Meta Platforms Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T16:46:29.000Z",
+    "readAt": null
+  },
+  {
+    "id": "f3a5f1ec-4243-43e7-a984-6a6f638a9562",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "internal",
+    "isRead": false,
+    "createdAt": "2026-06-10T00:34:13.000Z",
+    "readAt": null
+  },
+  {
+    "id": "e660b7d0-2e52-4e5a-a766-01304d62a051",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "cult-fest",
+    "isRead": false,
+    "createdAt": "2026-06-09T13:03:57.000Z",
+    "readAt": null
+  },
+  {
+    "id": "fa1366db-2733-4c87-bb9c-8ae170339b99",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "project-review",
+    "isRead": false,
+    "createdAt": "2026-06-10T02:03:41.000Z",
+    "readAt": null
+  },
+  {
+    "id": "4812565d-0e9a-4de1-b7f7-c6d4efc173da",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "internal",
+    "isRead": false,
+    "createdAt": "2026-06-09T15:03:25.000Z",
+    "readAt": null
+  },
+  {
+    "id": "0ce583ed-c945-483d-8fad-d636d8f1e106",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "external",
+    "isRead": false,
+    "createdAt": "2026-06-09T10:33:09.000Z",
+    "readAt": null
+  },
+  {
+    "id": "857f2351-9c6f-4086-b4d1-253bb3054889",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "farewell",
+    "isRead": false,
+    "createdAt": "2026-06-10T01:02:53.000Z",
+    "readAt": null
+  },
+  {
+    "id": "caa25f3c-6789-466a-966c-1e34eb138ad0",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "mid-sem",
+    "isRead": false,
+    "createdAt": "2026-06-09T18:02:37.000Z",
+    "readAt": null
+  },
+  {
+    "id": "00b88d1b-d88f-4d69-99df-8880c9d7bda7",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Tesla Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-10T02:32:21.000Z",
+    "readAt": null
+  },
+  {
+    "id": "ca042ffb-c63b-4e3b-80af-55e05eb76b2b",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "induction",
+    "isRead": false,
+    "createdAt": "2026-06-09T10:02:05.000Z",
+    "readAt": null
+  },
+  {
+    "id": "8e50add0-2f6c-43c6-9029-b1be54e6ce63",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "cult-fest",
+    "isRead": false,
+    "createdAt": "2026-06-09T22:01:49.000Z",
+    "readAt": null
+  },
+  {
+    "id": "a85a07b1-c4ef-4f3c-ae15-1856d594041c",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "PayPal Holdings Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T13:31:33.000Z",
+    "readAt": null
+  },
+  {
+    "id": "b63da1d7-d849-4c59-98f8-c819ea930006",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Broadcom Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T14:01:17.000Z",
+    "readAt": null
+  },
+  {
+    "id": "482099b0-f643-40ec-b3a7-43ec755c8e9e",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Advanced Micro Devices Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-10T00:31:01.000Z",
+    "readAt": null
+  },
+  {
+    "id": "68dad442-3260-43e5-9cc0-1ca36f75a3f6",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Eli Lilly and Company hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T08:00:45.000Z",
+    "readAt": null
+  },
+  {
+    "id": "e0b1fc73-800f-4daa-b8cb-3b55259df825",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "end-sem",
+    "isRead": false,
+    "createdAt": "2026-06-10T00:30:29.000Z",
+    "readAt": null
+  },
+  {
+    "id": "e1cbebc3-fd24-49ef-af98-ad65f3ee7c3f",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Tesla Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-09T14:30:13.000Z",
+    "readAt": null
+  },
+  {
+    "id": "03a688df-52fd-4bcf-b0a1-de1a7e73fab1",
+    "studentId": "stu_501",
+    "type": "Placement",
+    "title": "Placement Alert",
+    "message": "Apple Inc. hiring",
+    "isRead": false,
+    "createdAt": "2026-06-10T06:59:57.000Z",
+    "readAt": null
+  },
+  {
+    "id": "a2dff2c2-e354-4933-8366-0621f65a9478",
+    "studentId": "stu_501",
+    "type": "Event",
+    "title": "Event Alert",
+    "message": "induction",
+    "isRead": false,
+    "createdAt": "2026-06-10T06:29:41.000Z",
+    "readAt": null
+  },
+  {
+    "id": "ba5d0c88-9822-4e4c-b356-a436d86d2c1e",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "mid-sem",
+    "isRead": false,
+    "createdAt": "2026-06-09T15:59:25.000Z",
+    "readAt": null
+  },
+  {
+    "id": "931fde9c-b749-4a2b-a81f-a1f5ad665bf8",
+    "studentId": "stu_501",
+    "type": "Result",
+    "title": "Result Alert",
+    "message": "end-sem",
+    "isRead": false,
+    "createdAt": "2026-06-09T12:59:09.000Z",
+    "readAt": null
+  },
+  {
     "id": "notif_101",
     "studentId": "stu_501",
     "type": "Placement",

@@ -1,71 +1,123 @@
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
-import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import { getPriorityWeight } from '../utils/priorityHelper';
 
-const TYPE_COLORS = {
-  Placement: 'primary',
-  Event: 'success',
-  Result: 'warning',
-};
-
-function formatDate(isoString) {
-  if (!isoString) return '—';
-  try {
-    return new Date(isoString).toLocaleString('en-IN', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  } catch {
-    return '—';
+function timeAgo(dateString) {
+  if (!dateString) return '';
+  const now = new Date();
+  const formatted = dateString.includes(' ') && !dateString.includes('T')
+    ? dateString.replace(' ', 'T') + 'Z'
+    : dateString;
+  const date = new Date(formatted);
+  const diffMs = now.getTime() - date.getTime();
+  
+  if (Number.isNaN(diffMs) || diffMs < 0) {
+    return 'just now';
   }
+  
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  
+  const diffHrs = Math.floor(diffMins / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays === 1) return '1d ago';
+  if (diffDays < 30) return `${diffDays}d ago`;
+  
+  return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
 }
+
+const TYPE_COLORS = {
+  Placement: '#2563eb',
+  Event: '#16a34a',
+  Result: '#d97706',
+};
 
 function NotificationCard({ notification }) {
   const {
-    title = 'Untitled',
     message = '',
     type = 'Unknown',
     createdAt,
     isRead,
   } = notification || {};
 
-  const chipColor = TYPE_COLORS[type] || 'default';
+  const typeColor = TYPE_COLORS[type] || '#475569';
   const priority = getPriorityWeight(type);
 
   return (
-    <Card
-      variant="outlined"
+    <Box
       sx={{
-        mb: 1.5,
-        borderLeft: 4,
-        borderLeftColor: isRead ? 'grey.300' : `${chipColor}.main`,
-        bgcolor: isRead ? 'grey.50' : 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        py: 1.2,
+        px: 2,
+        borderBottom: '1px solid',
+        borderColor: 'grey.100',
+        bgcolor: isRead ? 'transparent' : 'action.hover',
+        transition: 'background-color 0.15s',
+        gap: 2,
+        cursor: 'pointer',
+        '&:hover': {
+          bgcolor: 'action.selected',
+        },
       }}
     >
-      <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }}>
-            {title}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 0.5, ml: 1, flexShrink: 0 }}>
-            <Chip label={type} color={chipColor} size="small" />
-            <Chip label={`P${priority}`} size="small" variant="outlined" />
-          </Box>
-        </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 700,
+            color: typeColor,
+            fontFamily: 'monospace',
+            flexShrink: 0,
+            minWidth: 90,
+          }}
+        >
+          [{type}]
+        </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: isRead ? 400 : 600,
+            color: isRead ? 'text.secondary' : 'text.primary',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            flex: 1,
+          }}
+        >
           {message}
         </Typography>
+      </Box>
 
-        <Typography variant="caption" color="text.disabled">
-          {formatDate(createdAt)}
-          {isRead ? '  •  Read' : '  •  Unread'}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.disabled',
+            fontSize: '0.7rem',
+            fontFamily: 'monospace',
+          }}
+        >
+          P{priority}
         </Typography>
-      </CardContent>
-    </Card>
+
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            minWidth: 60,
+            textAlign: 'right',
+          }}
+        >
+          {timeAgo(createdAt)}
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 

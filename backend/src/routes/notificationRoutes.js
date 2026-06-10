@@ -9,9 +9,11 @@ const {
   markAllNotificationsAsRead,
   deleteNotification,
   getUnreadCount,
-  getRecentNotifications
+  getRecentNotifications,
+  fetchEvaluationNotifications
 } = require('../data/notificationsStore');
 const requireAuth = require('../middleware/requireAuth');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const streamClients = new Set();
@@ -19,6 +21,7 @@ const streamClients = new Set();
 router.use(requireAuth);
 
 router.get('/stream', (req, res) => {
+  logger.info('Route execution: GET /api/v1/notifications/stream', { requestId: req.requestId });
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -39,38 +42,40 @@ router.get('/stream', (req, res) => {
   });
 });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res, next) => {
+  logger.info('Route execution: GET /api/v1/notifications', { requestId: req.requestId, query: req.query });
   const validationError = validateListQuery(req.query);
 
   if (validationError) {
+    logger.warn('Validation failed in route execution', { requestId: req.requestId, error: validationError });
     return sendBadRequest(res, validationError, req.requestId);
   }
 
   const page = Number(req.query.page || 1);
   const limit = Number(req.query.limit || 20);
-  const isRead = parseBoolean(req.query.isRead);
   const type = req.query.type || req.query.notification_type;
-  const studentId = req.query.studentId;
-  const cursor = req.query.cursor;
-  const { data, pagination } = getNotifications({
-    studentId,
-    type,
-    isRead,
-    page,
-    limit,
-    cursor
-  });
 
-  res.status(200).json({
-    success: true,
-    message: 'Notifications fetched successfully',
-    data,
-    pagination,
-    requestId: req.requestId
-  });
+  try {
+    const { data, pagination } = await fetchEvaluationNotifications({
+      type,
+      page,
+      limit
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Notifications fetched successfully',
+      data,
+      pagination,
+      requestId: req.requestId
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get('/unread-count', (req, res) => {
+  logger.info('Route execution: GET /api/v1/notifications/unread-count', { requestId: req.requestId, query: req.query });
   res.status(200).json({
     success: true,
     message: 'Unread notification count fetched successfully',
@@ -83,9 +88,11 @@ router.get('/unread-count', (req, res) => {
 });
 
 router.get('/recent', (req, res) => {
+  logger.info('Route execution: GET /api/v1/notifications/recent', { requestId: req.requestId, query: req.query });
   const validationError = validateRecentQuery(req.query);
 
   if (validationError) {
+    logger.warn('Validation failed in route execution', { requestId: req.requestId, error: validationError });
     return sendBadRequest(res, validationError, req.requestId);
   }
 
@@ -103,9 +110,11 @@ router.get('/recent', (req, res) => {
 });
 
 router.get('/:notificationId', (req, res) => {
+  logger.info('Route execution: GET /api/v1/notifications/:notificationId', { requestId: req.requestId, notificationId: req.params.notificationId });
   const notification = getNotificationById(req.params.notificationId);
 
   if (!notification) {
+    logger.warn('Notification not found in route execution', { requestId: req.requestId, notificationId: req.params.notificationId });
     return sendNotFound(res, req.requestId);
   }
 
@@ -118,9 +127,11 @@ router.get('/:notificationId', (req, res) => {
 });
 
 router.post('/batch', (req, res) => {
+  logger.info('Route execution: POST /api/v1/notifications/batch', { requestId: req.requestId, body: req.body });
   const validationError = validateBatchCreateBody(req.body);
 
   if (validationError) {
+    logger.warn('Validation failed in route execution', { requestId: req.requestId, error: validationError });
     return sendBadRequest(res, validationError, req.requestId);
   }
 
@@ -145,9 +156,11 @@ router.post('/batch', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+  logger.info('Route execution: POST /api/v1/notifications', { requestId: req.requestId, body: req.body });
   const validationError = validateCreateBody(req.body);
 
   if (validationError) {
+    logger.warn('Validation failed in route execution', { requestId: req.requestId, error: validationError });
     return sendBadRequest(res, validationError, req.requestId);
   }
 
@@ -166,6 +179,7 @@ router.post('/', (req, res) => {
 });
 
 router.patch('/read-all', (req, res) => {
+  logger.info('Route execution: PATCH /api/v1/notifications/read-all', { requestId: req.requestId });
   const updatedCount = markAllNotificationsAsRead();
   broadcastNotificationEvent('notifications.read_all', {
     updatedCount,
@@ -183,9 +197,11 @@ router.patch('/read-all', (req, res) => {
 });
 
 router.patch('/:notificationId/read', (req, res) => {
+  logger.info('Route execution: PATCH /api/v1/notifications/:notificationId/read', { requestId: req.requestId, notificationId: req.params.notificationId });
   const notification = markNotificationAsRead(req.params.notificationId);
 
   if (!notification) {
+    logger.warn('Notification not found in route execution', { requestId: req.requestId, notificationId: req.params.notificationId });
     return sendNotFound(res, req.requestId);
   }
 
@@ -207,10 +223,12 @@ router.patch('/:notificationId/read', (req, res) => {
 });
 
 router.delete('/:notificationId', (req, res) => {
+  logger.info('Route execution: DELETE /api/v1/notifications/:notificationId', { requestId: req.requestId, notificationId: req.params.notificationId });
   const notification = getNotificationById(req.params.notificationId);
   const wasDeleted = deleteNotification(req.params.notificationId);
 
   if (!wasDeleted) {
+    logger.warn('Notification not found in route execution', { requestId: req.requestId, notificationId: req.params.notificationId });
     return sendNotFound(res, req.requestId);
   }
 
