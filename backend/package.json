@@ -1,0 +1,16 @@
+{
+  "name": "afford-medical-backend",
+  "version": "1.0.0",
+  "description": "Backend logging middleware setup for the campus hiring assessment.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
