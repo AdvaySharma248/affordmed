@@ -97,6 +97,251 @@ Future improvements:
 - Timestamps are stored as UTC ISO strings.
 - The current backend uses a simple authorization-header check before allowing notification access.
 
+# Stage 3
+
+## Query Analysis
+
+Provided query:
+
+```sql
+SELECT *
+FROM notifications
+WHERE studentID = 1042
+AND isRead = false
+ORDER BY createdAt ASC;
+```
+
+The query expresses the right business need: fetch unread notifications for one student. However, it has several practical problems.
+
+The main issues are:
+
+- It uses camelCase column names such as `studentID`, `isRead`, and `createdAt`.
+- In a database schema, these should usually be normalized to snake_case names such as `student_id`, `is_read`, and `created_at`.
+- It uses `SELECT *`, which returns more data than the API usually needs.
+- It sorts oldest-first, while notification feeds usually need newest-first.
+- It does not show pagination, so it may return too many rows.
+- It depends on indexes that may not exist.
+
+If the production schema is normalized into separate notification and delivery/read-status tables, the query should use joins. If the assessment keeps a single `notifications` table, the same optimization ideas still apply.
+
+## Bottlenecks
+
+The query can become slow when the system has many students and millions of notifications.
+
+With 50,000 students and 5,000,000 notifications, a single student may have hundreds or thousands of records. If many students are active at the same time, small inefficiencies become expensive quickly.
+
+Main bottlenecks:
+
+- Filtering by `studentID` without an index.
+- Filtering by `isRead` without a useful composite index.
+- Sorting by `createdAt` after filtering.
+- Returning all columns with `SELECT *`.
+- Returning an unlimited result set.
+
+## Full Table Scan
+
+If there is no index on the student and read-status fields, the database may scan the entire `notifications` table.
+
+That means the database checks many rows that do not belong to the requested student. With 5,000,000 rows, this wastes CPU, memory, and disk I/O.
+
+The database should be able to jump directly to unread notifications for one student instead of scanning unrelated notifications.
+
+## `SELECT *` Problem
+
+`SELECT *` is convenient during development, but it is not ideal for production APIs.
+
+Problems:
+
+- It returns columns the client may not need.
+- It increases response size.
+- It can expose internal fields accidentally.
+- It makes the API depend too closely on the table structure.
+- It becomes slower if the table later gets large text or metadata columns.
+
+The query should return only the fields needed by the notification API.
+
+## Index Recommendations
+
+The query filters by student and read status, then sorts by creation time. The index should match that access pattern.
+
+For a single-table design:
+
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications (student_id, is_read, created_at DESC);
+```
+
+Reasoning:
+
+- `student_id` narrows the search to one student.
+- `is_read` narrows the result to unread notifications.
+- `created_at DESC` supports newest-first ordering without a separate expensive sort.
+
+If notification type filtering is common, add a separate index:
+
+```sql
+CREATE INDEX idx_notifications_type_created
+ON notifications (notification_type, created_at DESC);
+```
+
+Reasoning:
+
+- `notification_type` helps queries for `Placement`, `Event`, or `Result`.
+- `created_at DESC` helps recent-notification queries.
+
+## Composite Index Design
+
+A composite index is better here than separate indexes on each column.
+
+Separate indexes:
+
+```sql
+CREATE INDEX idx_notifications_student_id
+ON notifications (student_id);
+
+CREATE INDEX idx_notifications_is_read
+ON notifications (is_read);
+
+CREATE INDEX idx_notifications_created_at
+ON notifications (created_at);
+```
+
+These may help some queries, but they do not fully match the main access pattern.
+
+Better composite index:
+
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications (student_id, is_read, created_at DESC);
+```
+
+This index matches the query shape: first find the student's rows, then unread rows, then return them in the correct order.
+
+The order matters. `student_id` should come first because it is highly selective. `is_read` comes next because it filters unread rows. `created_at` comes last because it supports ordering.
+
+## Optimized Query
+
+Optimized single-table version:
+
+```sql
+SELECT
+  id,
+  student_id,
+  notification_type,
+  title,
+  message,
+  is_read,
+  created_at,
+  read_at
+FROM notifications
+WHERE student_id = 1042
+  AND is_read = false
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+This version:
+
+- Uses database-style column names.
+- Avoids `SELECT *`.
+- Sorts newest-first.
+- Limits the result size.
+- Works well with the composite index on `(student_id, is_read, created_at DESC)`.
+
+If cursor pagination is used:
+
+```sql
+SELECT
+  id,
+  student_id,
+  notification_type,
+  title,
+  message,
+  is_read,
+  created_at,
+  read_at
+FROM notifications
+WHERE student_id = 1042
+  AND is_read = false
+  AND created_at < '2026-06-10T12:00:00Z'
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+Cursor pagination avoids deep `OFFSET` scans and is better for large notification feeds.
+
+## Excessive Indexing Tradeoffs
+
+Creating indexes on every column is not a good idea.
+
+Indexes speed up some reads, but they also have costs:
+
+- Every insert must update more indexes.
+- Every update may need index maintenance.
+- Deletes become more expensive.
+- Indexes use disk space.
+- More indexes increase memory pressure.
+- The query planner has more options to evaluate.
+
+For notifications, excessive indexing can slow down the exact operations that happen frequently: creating notifications and marking them as read.
+
+The practical approach is to index the queries that are actually important:
+
+- Student notification feed.
+- Unread notification feed.
+- Recent notification lookup.
+- Notification type filtering.
+
+Indexes should be reviewed with real query plans and real traffic patterns, not added blindly.
+
+## Placement Notifications In The Last 7 Days
+
+Query to find students who received `Placement` notifications during the last 7 days:
+
+```sql
+SELECT DISTINCT
+  student_id
+FROM notifications
+WHERE notification_type = 'Placement'
+  AND created_at >= NOW() - INTERVAL '7 days';
+```
+
+If a `students` table exists and student details are needed:
+
+```sql
+SELECT DISTINCT
+  s.id,
+  s.name,
+  s.email
+FROM students s
+JOIN notifications n
+  ON n.student_id = s.id
+WHERE n.notification_type = 'Placement'
+  AND n.created_at >= NOW() - INTERVAL '7 days'
+ORDER BY s.name ASC;
+```
+
+Recommended index for this query:
+
+```sql
+CREATE INDEX idx_notifications_type_created_student
+ON notifications (notification_type, created_at DESC, student_id);
+```
+
+Reasoning:
+
+- `notification_type` filters to `Placement`.
+- `created_at` filters recent records.
+- `student_id` helps return the affected students.
+
+## Assumptions
+
+- The SQL examples use a production-style relational table named `notifications`.
+- Column names are shown in snake_case for database consistency.
+- The current JSON-file implementation can still follow the same query design ideas if moved to a database later.
+- Notification feeds should usually show newest notifications first.
+- List APIs should always use pagination.
+
 # Stage 4
 
 ## Performance Bottlenecks
@@ -420,3 +665,394 @@ This path improves performance without making the system unnecessarily complex t
 - Notification feeds are normally shown newest-first.
 - The API should limit notification list responses by default.
 - Background jobs are acceptable for bulk notification delivery.
+
+# Stage 5
+
+## Problem With The Current Approach
+
+Current flow:
+
+1. Save notification.
+2. Send email.
+3. Send push notification.
+4. Repeat for every student.
+
+This works for a small number of students, but it becomes slow and unreliable when an administrator sends one notification to thousands of students.
+
+Main problems:
+
+- The admin request takes too long because it waits for every delivery action.
+- One slow email or push provider can delay the whole operation.
+- A temporary provider failure can cause partial delivery.
+- If the backend crashes halfway through, some students may receive the notification and others may not.
+- Retrying the whole request can create duplicate notifications.
+- The system has no clean way to track which deliveries succeeded, failed, or are still pending.
+
+The core issue is that notification creation and notification delivery are coupled together. They should be separated.
+
+## Why It Fails At Scale
+
+If one notification is sent to 50,000 students, the synchronous approach may perform 50,000 database writes, 50,000 email calls, and 50,000 push notification calls inside one request flow.
+
+That fails at scale because:
+
+- HTTP requests have timeout limits.
+- External email and push services have rate limits.
+- Network calls fail randomly and need retries.
+- Large loops consume backend memory and CPU.
+- A single backend instance becomes a bottleneck.
+- There is no reliable recovery point after a crash.
+
+The admin should receive a fast response after the notification job is accepted. Delivery should continue in the background.
+
+## Reliable Delivery Architecture
+
+Recommended architecture:
+
+- API server accepts the admin request.
+- Database stores the notification and delivery records.
+- Message queue stores delivery jobs.
+- Background workers process jobs.
+- Email and push providers are called by workers.
+- Failed jobs are retried.
+- Permanently failed jobs are moved to a dead letter queue.
+- Monitoring tracks queue size, failures, and delivery time.
+
+RabbitMQ or Kafka can be used as the message queue.
+
+RabbitMQ is a good fit when the system needs task queues, acknowledgements, retries, and dead letter queues with simple operational behavior.
+
+Kafka is a good fit when the system needs very high event throughput, event replay, and long-term event streaming.
+
+For this assessment, RabbitMQ is the simpler and more practical default. Kafka can be considered later if notification events become part of a larger event platform.
+
+## Data Flow
+
+Admin creates a notification:
+
+```text
+Admin API request
+  -> Save notification record
+  -> Create delivery records with status pending
+  -> Publish delivery jobs to queue
+  -> Return response to admin
+```
+
+Workers process delivery:
+
+```text
+Worker consumes job
+  -> Load delivery record
+  -> Send email
+  -> Send push notification
+  -> Mark delivery as delivered
+  -> Acknowledge queue message
+```
+
+If delivery fails:
+
+```text
+Worker consumes job
+  -> Provider call fails
+  -> Increment attempt count
+  -> Retry later with backoff
+  -> Move to dead letter queue after max attempts
+```
+
+This keeps the API responsive and makes delivery recoverable.
+
+## Message Queues
+
+A message queue stores delivery work until a worker is ready to process it.
+
+Each queue message should contain only the information needed to find and process the delivery:
+
+```json
+{
+  "notificationId": "notif_123",
+  "deliveryId": "delivery_456",
+  "studentId": "stu_501",
+  "attempt": 1
+}
+```
+
+The message should not contain the full notification body as the source of truth. The worker should load the latest durable data from the database using `notificationId` and `deliveryId`.
+
+Benefits:
+
+- The API does not wait for thousands of provider calls.
+- Workers can process jobs at a controlled rate.
+- Failed jobs can be retried.
+- More workers can be added when the queue grows.
+- Queue acknowledgements reduce the chance of lost work.
+
+## Background Workers
+
+Background workers are separate services that consume queue messages and perform delivery.
+
+Worker responsibilities:
+
+- Read delivery jobs from the queue.
+- Send email and push notifications.
+- Update delivery status.
+- Retry safe failures.
+- Log provider errors.
+- Acknowledge messages only after processing succeeds.
+
+Workers should process jobs in batches where useful, but each delivery should still have its own tracking status. This makes failures visible and prevents one bad recipient from blocking an entire notification.
+
+Workers should also respect provider rate limits. For example, if the email provider allows 1,000 messages per minute, workers should throttle delivery instead of overwhelming the provider.
+
+## Retry Mechanisms
+
+Failures should be retried only when they are likely to be temporary.
+
+Retryable failures:
+
+- Email provider timeout.
+- Push provider timeout.
+- Temporary network error.
+- Rate limit response.
+- 5xx response from provider.
+
+Non-retryable failures:
+
+- Invalid email address.
+- Invalid push token.
+- Student account disabled.
+- Notification record no longer exists.
+
+Retries should use exponential backoff:
+
+```text
+Attempt 1: immediate
+Attempt 2: retry after 30 seconds
+Attempt 3: retry after 2 minutes
+Attempt 4: retry after 10 minutes
+```
+
+The system should store attempt count and last error so administrators and developers can understand what happened.
+
+## Dead Letter Queues
+
+A dead letter queue stores jobs that could not be processed after the maximum number of retry attempts.
+
+Example reasons:
+
+- Provider keeps failing.
+- Message payload is invalid.
+- Delivery record is missing.
+- The same job repeatedly crashes a worker.
+
+Dead letter queues are important because failed messages should not disappear silently. They give the team a place to inspect failures, fix the root cause, and optionally replay the jobs.
+
+Practical rule:
+
+- Retry temporary failures a small number of times.
+- Move the job to the dead letter queue after the retry limit.
+- Mark the delivery record as `failed`.
+- Keep the failure reason for debugging.
+
+## Fault Tolerance
+
+The system should assume that workers, providers, and network calls can fail.
+
+Fault-tolerant behavior:
+
+- Save notification and delivery records before publishing jobs.
+- Acknowledge queue messages only after the delivery status is updated.
+- Use idempotent delivery logic so the same job can be safely retried.
+- Store delivery status in the database.
+- Keep failed jobs in a dead letter queue.
+- Run multiple worker instances.
+
+Idempotency is important. If the same queue message is processed twice, the worker should check the delivery status first.
+
+Example:
+
+```sql
+SELECT status
+FROM notification_deliveries
+WHERE id = 'delivery_456';
+```
+
+If the status is already `delivered`, the worker should acknowledge the message and skip sending again.
+
+## Delivery Tracking
+
+Notification delivery should be tracked separately from the notification content.
+
+Example delivery fields:
+
+| Field | Purpose |
+| --- | --- |
+| `id` | Unique delivery record |
+| `notification_id` | Notification being delivered |
+| `student_id` | Student receiving it |
+| `status` | `pending`, `processing`, `delivered`, `failed` |
+| `email_status` | Email-specific delivery status |
+| `push_status` | Push-specific delivery status |
+| `attempt_count` | Number of processing attempts |
+| `last_error` | Most recent failure reason |
+| `created_at` | Delivery record creation time |
+| `delivered_at` | Successful delivery time |
+| `failed_at` | Final failure time |
+
+This makes the system auditable. An administrator can see whether a notification was delivered to all intended students or whether some failed.
+
+## Failure Handling
+
+Failures should be handled at the delivery level, not by failing the entire notification.
+
+Example:
+
+- 49,900 students receive the notification successfully.
+- 100 deliveries fail because of invalid push tokens.
+- The notification job should still be considered mostly successful.
+- Failed delivery records should show the exact reason.
+
+The admin UI or reporting API can show:
+
+```text
+Total recipients: 50,000
+Delivered: 49,900
+Failed: 100
+Pending: 0
+```
+
+Failures should be grouped by reason so the team can fix common issues, such as expired push tokens or invalid email addresses.
+
+## Horizontal Scaling
+
+Workers can be scaled horizontally by running more worker service instances.
+
+For example:
+
+```text
+Queue
+  -> Worker 1
+  -> Worker 2
+  -> Worker 3
+  -> Worker 4
+```
+
+This improves throughput without changing the API server.
+
+Scaling rules:
+
+- Add workers when queue depth grows.
+- Reduce workers if external providers start rate limiting.
+- Keep each worker stateless.
+- Store delivery state in the database, not in worker memory.
+- Use queue acknowledgements so another worker can retry a job if one worker crashes.
+
+Horizontal scaling should be controlled. Adding too many workers can overload the database or external email and push services.
+
+## Ensuring Notifications Are Not Lost
+
+To avoid losing notifications:
+
+- Store the notification record first.
+- Store delivery records for intended recipients.
+- Publish queue messages after durable records exist.
+- Use durable queues.
+- Use message acknowledgements.
+- Retry unacknowledged messages.
+- Keep failed messages in a dead letter queue.
+- Reconcile pending delivery records with queue state.
+
+A reconciliation job can periodically find delivery records stuck in `pending` or `processing` and requeue them.
+
+Example:
+
+```sql
+SELECT id
+FROM notification_deliveries
+WHERE status IN ('pending', 'processing')
+  AND created_at < NOW() - INTERVAL '10 minutes';
+```
+
+This protects against cases where a database write succeeds but queue publishing or worker processing fails.
+
+## Monitoring And Observability
+
+The system should be monitored from API request to final delivery.
+
+Important logs:
+
+- Notification created.
+- Delivery records created.
+- Queue message published.
+- Worker started delivery.
+- Provider call succeeded.
+- Provider call failed.
+- Job retried.
+- Job moved to dead letter queue.
+
+Important metrics:
+
+- Queue depth.
+- Jobs processed per minute.
+- Delivery success rate.
+- Delivery failure rate.
+- Retry count.
+- Dead letter queue count.
+- Worker processing time.
+- Email provider latency.
+- Push provider latency.
+- Database write latency.
+
+Useful alerts:
+
+- Queue depth keeps growing.
+- Dead letter queue count is above zero for too long.
+- Delivery failure rate spikes.
+- Worker service is down.
+- Provider latency is too high.
+- Notifications remain pending for too long.
+
+Tracing is also useful. A single `notificationId` should be traceable across API logs, queue messages, worker logs, provider calls, and delivery status records.
+
+## Tradeoffs
+
+This architecture is more reliable than synchronous delivery, but it adds moving parts.
+
+Benefits:
+
+- Admin requests return quickly.
+- Delivery can continue after temporary failures.
+- Workers can scale independently.
+- Failed deliveries are visible.
+- Queue-based processing protects the API from provider slowness.
+
+Costs:
+
+- More infrastructure to run.
+- More operational monitoring needed.
+- Delivery becomes eventually consistent.
+- Admins may see `pending` status before all students receive the notification.
+
+The tradeoff is worth it once notifications are sent to thousands of students. For very small deployments, a simpler background job setup may be enough before adding RabbitMQ or Kafka.
+
+## Recommended Direction
+
+For this system, the practical production path is:
+
+1. Save notification and delivery records in the database.
+2. Publish one delivery job per student or per small batch.
+3. Process jobs with background workers.
+4. Retry temporary failures with backoff.
+5. Move permanently failed jobs to a dead letter queue.
+6. Track delivery status per student.
+7. Monitor queue depth, delivery failures, and worker health.
+
+RabbitMQ is the recommended queue for the first production version because it fits task-based delivery well and supports acknowledgements, retries, and dead letter queues without requiring a larger event-streaming platform.
+
+## Assumptions
+
+- The production system uses the Stage 2 database schema, plus a delivery tracking table.
+- Email and push notification providers are external services and may fail.
+- Redis may be used for caching counts, but it is not the durable delivery source.
+- Queue messages are durable and acknowledged only after processing.
+- Delivery is eventually consistent, not instant for every student.
+- Duplicate queue messages are possible, so workers must be idempotent.
